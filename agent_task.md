@@ -1,0 +1,1 @@
+Your task will be to continue the development of the minimum-viable-product features for the seqeditor-wasm project. All tasks are described in @minimum-viable-product-requirements.md , the progress for the project and to-do items is described in @progress.md 

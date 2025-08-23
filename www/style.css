@@ -1,0 +1,50 @@
+body, html {
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+.content {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-areas:
+    "ruler-header ruler-view"
+    "names-header sequence-view";
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.ruler-container {
+  grid-area: ruler-view;
+  border-bottom: 1px solid #ccc;
+}
+
+.names-container {
+  grid-area: names-header;
+  border-right: 1px solid #ccc;
+}
+
+.sequence-container {
+  grid-area: sequence-view;
+  overflow: hidden; /* Hide scrollbars on the container */
+}
+
+#sequence-canvas, #names-canvas, #ruler-canvas {
+  display: block;
+}
