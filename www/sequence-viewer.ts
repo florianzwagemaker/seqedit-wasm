@@ -97,6 +97,14 @@ export class SequenceViewer {
         window.addEventListener('keydown', this.onKeyDown.bind(this));
     }
 
+    private saveState() {
+        const state = {
+            names: this.names,
+            sequences: this.sequences
+        };
+        localStorage.setItem('seqedit-state', JSON.stringify(state));
+    }
+
     public setSequences(names: string[], sequences: string[]) {
         this.names = names;
         this.sequences = sequences;
