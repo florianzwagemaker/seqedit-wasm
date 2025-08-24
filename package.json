@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/florianzwagemaker/seqedit-wasm#readme",
   "devDependencies": {
+    "copy-webpack-plugin": "^12.0.2",
     "ts-loader": "^9.5.2",
     "typescript": "^5.9.2",
     "webpack": "^5.101.3",

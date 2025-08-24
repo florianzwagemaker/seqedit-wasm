@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   experiments: {
@@ -25,6 +26,14 @@ module.exports = {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'www', 'dist'),
   },
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        { from: 'www/index.html', to: 'index.html' },
+        { from: 'www/style.css', to: 'style.css' },
+      ],
+    }),
+  ],
   devServer: {
     static: {
         directory: path.join(__dirname, 'www'),
