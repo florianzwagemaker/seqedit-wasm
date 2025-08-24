@@ -315,6 +315,54 @@ export class SequenceViewer {
         return newCursorPos;
     }
 
+    private deleteCharacter(isBackspace: boolean) {
+        if (!this.selectionStart || !this.selectionEnd) {
+            return;
+        }
+
+        const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        let startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+
+        if (isBackspace) {
+            if (startCol > 0) {
+                startCol--;
+            }
+        }
+
+        for (let i = startRow; i <= endRow; i++) {
+            const originalSequence = this.sequences[i];
+            const newSequence = originalSequence.slice(0, startCol) + originalSequence.slice(startCol + 1);
+            this.sequences[i] = newSequence;
+        }
+
+        this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
+        this.selectionStart = { seqIndex: startRow, pos: startCol };
+        this.selectionEnd = this.selectionStart;
+        this.requestRedraw();
+    }
+
+    private insertCharacter(char: string) {
+        if (!this.selectionStart || !this.selectionEnd) {
+            return;
+        }
+
+        const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+
+        for (let i = startRow; i <= endRow; i++) {
+            const originalSequence = this.sequences[i];
+            const newSequence = originalSequence.slice(0, startCol) + char + originalSequence.slice(startCol);
+            this.sequences[i] = newSequence;
+        }
+
+        this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
+        this.selectionStart = { seqIndex: startRow, pos: startCol + 1 };
+        this.selectionEnd = this.selectionStart;
+        this.requestRedraw();
+    }
+
     private fillSelection(char: string) {
         if (!this.selectionStart || !this.selectionEnd) {
             return;
@@ -382,47 +430,21 @@ export class SequenceViewer {
 
         if (iupacCharacters.includes(event.key.toUpperCase())) {
             event.preventDefault();
-            const originalSequence = this.sequences[seqIndex];
-            let newSequence = '';
-            let newPos = pos;
-
-            if (this.selectionStart && this.selectionEnd) { // Check if any selection exists
+            if (this.selectionStart && this.selectionEnd && (this.selectionStart.pos !== this.selectionEnd.pos || this.selectionStart.seqIndex !== this.selectionEnd.seqIndex)) { // Check if any selection exists
                 this.fillSelection(event.key.toUpperCase());
-                return; // Exit after filling selection
             } else {
-                // No selection, just insert
-                newSequence = originalSequence.slice(0, pos) + event.key.toUpperCase() + originalSequence.slice(pos);
-                newPos = pos + 1;
+                this.insertCharacter(event.key.toUpperCase());
             }
-
-            this.sequences[seqIndex] = newSequence;
-            this.selectionStart = { seqIndex, pos: newPos };
-            this.selectionEnd = this.selectionStart;
-            this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-            this.requestRedraw();
         } else if (event.key === ' ') {
             event.preventDefault();
-            const originalSequence = this.sequences[seqIndex];
-            let newSequence = '';
-            let newPos = pos;
-
-            if (this.selectionStart && this.selectionEnd) { // Check if any selection exists
-                this.fillSelection('-');
-                return; // Exit after filling selection
-            } else {
-                // No selection, just insert
-                newSequence = originalSequence.slice(0, pos) + '-' + originalSequence.slice(pos);
-                newPos = pos + 1;
-            }
-
-            this.sequences[seqIndex] = newSequence;
-            this.selectionStart = { seqIndex, pos: newPos };
-            this.selectionEnd = this.selectionStart;
-            this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-            this.requestRedraw();
+            this.insertCharacter('-');
         } else if (event.key === 'ArrowLeft') {
             event.preventDefault();
-            if (event.shiftKey) {
+            if (event.ctrlKey) {
+                const newPos = this.findPreviousWord(seqIndex, pos);
+                this.selectionStart = { seqIndex, pos: newPos };
+                this.selectionEnd = this.selectionStart;
+            } else if (event.shiftKey) {
                 // Extend selection left
                 if (this.selectionEnd!.pos > 0) {
                     this.selectionEnd!.pos--;
@@ -442,10 +464,13 @@ export class SequenceViewer {
             this.requestRedraw();
         } else if (event.key === 'ArrowRight') {
             event.preventDefault();
-            const currentSequenceLength = this.sequences[seqIndex].length;
-            if (event.shiftKey) {
+            if (event.ctrlKey) {
+                const newPos = this.findNextWord(seqIndex, pos);
+                this.selectionStart = { seqIndex, pos: newPos };
+                this.selectionEnd = this.selectionStart;
+            } else if (event.shiftKey) {
                 // Extend selection right
-                if (this.selectionEnd!.pos < currentSequenceLength) {
+                if (this.selectionEnd!.pos < this.sequences[seqIndex].length) {
                     this.selectionEnd!.pos++;
                 } else if (this.selectionEnd!.seqIndex < this.sequences.length - 1) {
                     this.selectionEnd!.seqIndex++;
@@ -453,7 +478,7 @@ export class SequenceViewer {
                 }
             } else {
                 // Move cursor right, clear selection
-                if (pos < currentSequenceLength) {
+                if (pos < this.sequences[seqIndex].length) {
                     this.selectionStart = { seqIndex, pos: pos + 1 };
                 } else if (seqIndex < this.sequences.length - 1) {
                     this.selectionStart = { seqIndex: seqIndex + 1, pos: 0 };
@@ -463,7 +488,10 @@ export class SequenceViewer {
             this.requestRedraw();
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
-            if (event.shiftKey) {
+            if (event.ctrlKey) {
+                this.selectionStart = { seqIndex: 0, pos: pos };
+                this.selectionEnd = this.selectionStart;
+            } else if (event.shiftKey) {
                 // Extend selection up
                 if (this.selectionEnd!.seqIndex > 0) {
                     this.selectionEnd!.seqIndex--;
@@ -481,7 +509,10 @@ export class SequenceViewer {
             this.requestRedraw();
         } else if (event.key === 'ArrowDown') {
             event.preventDefault();
-            if (event.shiftKey) {
+            if (event.ctrlKey) {
+                this.selectionStart = { seqIndex: this.sequences.length - 1, pos: pos };
+                this.selectionEnd = this.selectionStart;
+            } else if (event.shiftKey) {
                 // Extend selection down
                 if (this.selectionEnd!.seqIndex < this.sequences.length - 1) {
                     this.selectionEnd!.seqIndex++;
@@ -500,23 +531,51 @@ export class SequenceViewer {
             this.requestRedraw();
         } else if (event.key === 'Backspace') {
             event.preventDefault();
-            if (pos > 0) {
-                const originalSequence = this.sequences[seqIndex];
-                const newSequence = originalSequence.slice(0, pos - 1) + originalSequence.slice(pos);
-                this.sequences[seqIndex] = newSequence;
-                this.selectionStart.pos--;
-                this.selectionEnd = this.selectionStart;
-                this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-                this.requestRedraw();
-            }
+            this.deleteCharacter(true);
         } else if (event.key === 'Delete') {
             event.preventDefault();
-            const originalSequence = this.sequences[seqIndex];
-            const newSequence = originalSequence.slice(0, pos) + originalSequence.slice(pos + 1);
-            this.sequences[seqIndex] = newSequence;
-            this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-            this.requestRedraw();
+            this.deleteCharacter(false);
         }
+    }
+
+    private findNextWord(seqIndex: number, pos: number): number {
+        const sequence = this.sequences[seqIndex];
+        let inWord = !this.isGap(sequence[pos]);
+
+        for (let i = pos; i < sequence.length; i++) {
+            if (inWord) {
+                if (this.isGap(sequence[i])) {
+                    inWord = false;
+                }
+            } else {
+                if (!this.isGap(sequence[i])) {
+                    return i;
+                }
+            }
+        }
+        return sequence.length;
+    }
+
+    private findPreviousWord(seqIndex: number, pos: number): number {
+        const sequence = this.sequences[seqIndex];
+        let inWord = pos > 0 && !this.isGap(sequence[pos - 1]);
+
+        for (let i = pos - 1; i >= 0; i--) {
+            if (inWord) {
+                if (this.isGap(sequence[i])) {
+                    return i + 1;
+                }
+            } else {
+                if (!this.isGap(sequence[i])) {
+                    inWord = true;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private isGap(char: string): boolean {
+        return char === '-';
     }
 
     private onWheel(event: WheelEvent) {

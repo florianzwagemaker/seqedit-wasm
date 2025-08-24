@@ -1,5 +1,5 @@
 import { SequenceViewer } from './sequence-viewer';
-import { parse_fasta, reverse_complement, translate } from '../pkg/seqedit_wasm';
+import { parse_fasta, reverse_complement, translate, search } from '../pkg/seqedit_wasm';
 
 async function main() {
 
@@ -12,10 +12,12 @@ async function main() {
     const loadButton = document.getElementById('load-button') as HTMLButtonElement;
     const revCompButton = document.getElementById('revcomp-button') as HTMLButtonElement;
     const translateButton = document.getElementById('translate-button') as HTMLButtonElement;
-    const frame1Button = document.getElementById('frame1-button') as HTMLButtonElement;
-    const frame2Button = document.getElementById('frame2-button') as HTMLButtonElement;
-    const frame3Button = document.getElementById('frame3-button') as HTMLButtonElement;
-    const nucleotideModeButton = document.getElementById('nucleotide-mode-button') as HTMLButtonElement;
+    const frameButtons = document.getElementById('frame-buttons') as HTMLDivElement;
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    const searchButton = document.getElementById('search-button') as HTMLButtonElement;
+
+    let isTranslated = false;
+    let currentFrame = 1;
 
     async function loadSequences() {
         const url = urlInput.value;
@@ -50,49 +52,40 @@ async function main() {
         }
     });
 
+    function translateAll(frame: number) {
+        const sequences = viewer.getSequences();
+        const translatedSequences = sequences.map(seq => translate(seq, frame));
+        viewer.setTranslatedSequences(translatedSequences, frame);
+        currentFrame = frame;
+        isTranslated = true;
+        translateButton.textContent = 'Nucleotide Mode';
+        frameButtons.style.display = 'inline-block';
+    }
+
     translateButton.addEventListener('click', () => {
-        const selected = viewer.getSelectedSequence();
-        if (selected) {
-            const translatedSequence = translate(selected.sequence, 1); // Default to frame 1
-            viewer.setTranslatedSequences([translatedSequence], 1); // Assuming single sequence for now
+        console.log('translate button clicked', isTranslated);
+        if (isTranslated) {
+            viewer.setNucleotideMode();
+            isTranslated = false;
+            translateButton.textContent = 'Translate';
+            frameButtons.style.display = 'none';
         } else {
-            alert('Please select a sequence to translate.');
+            translateAll(currentFrame);
         }
     });
 
-    frame1Button.addEventListener('click', () => {
-        const selected = viewer.getSelectedSequence();
-        if (selected) {
-            const translatedSequence = translate(selected.sequence, 1);
-            viewer.setTranslatedSequences([translatedSequence], 1);
-        } else {
-            alert('Please select a sequence to translate.');
-        }
+    searchButton.addEventListener('click', () => {
+        const query = searchInput.value;
+        if (!query) return;
+
+        const sequences = viewer.getSequences();
+        const searchResults = sequences.map(seq => search(seq, query));
+        viewer.setSearchResults(searchResults);
     });
 
-    frame2Button.addEventListener('click', () => {
-        const selected = viewer.getSelectedSequence();
-        if (selected) {
-            const translatedSequence = translate(selected.sequence, 2);
-            viewer.setTranslatedSequences([translatedSequence], 2);
-        } else {
-            alert('Please select a sequence to translate.');
-        }
-    });
-
-    frame3Button.addEventListener('click', () => {
-        const selected = viewer.getSelectedSequence();
-        if (selected) {
-            const translatedSequence = translate(selected.sequence, 3);
-            viewer.setTranslatedSequences([translatedSequence], 3);
-        } else {
-            alert('Please select a sequence to translate.');
-        }
-    });
-
-    nucleotideModeButton.addEventListener('click', () => {
-        viewer.setNucleotideMode();
-    });
+    document.getElementById('frame1-button')!.addEventListener('click', () => translateAll(1));
+    document.getElementById('frame2-button')!.addEventListener('click', () => translateAll(2));
+    document.getElementById('frame3-button')!.addEventListener('click', () => translateAll(3));
 
     // Load default sequences on page load
     loadSequences();

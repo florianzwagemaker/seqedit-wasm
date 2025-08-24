@@ -83,6 +83,11 @@ lazy_static::lazy_static! {
 }
 
 #[wasm_bindgen]
+pub fn search(sequence: &str, query: &str) -> Vec<usize> {
+    sequence.match_indices(query).map(|(i, _)| i).collect()
+}
+
+#[wasm_bindgen]
 pub fn translate(sequence: &str, frame: usize) -> String {
     let mut amino_acids = String::new();
     let start_index = frame - 1; // Adjust for 0-based indexing
