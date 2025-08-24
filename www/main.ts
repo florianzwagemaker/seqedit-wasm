@@ -80,7 +80,8 @@ async function main() {
 
         const sequences = viewer.getSequences();
         const searchResults = sequences.map(seq => search(seq, query));
-        viewer.setSearchResults(searchResults);
+        const convertedResults = searchResults.map(res => Array.from(res));
+        viewer.setSearchResults(convertedResults, query.length);
     });
 
     document.getElementById('frame1-button')!.addEventListener('click', () => translateAll(1));

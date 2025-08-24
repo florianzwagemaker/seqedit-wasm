@@ -74,6 +74,8 @@ export class SequenceViewer {
     private displayMode: 'nucleotide' | 'aminoacid' = 'nucleotide';
     private translatedSequences: string[] = [];
     private currentReadingFrame = 1;
+    private searchResults: number[][] = [];
+    private searchQueryLength = 0;
 
     constructor(sequenceCanvas: HTMLCanvasElement, namesCanvas: HTMLCanvasElement, rulerCanvas: HTMLCanvasElement) {
         this.sequenceCanvas = sequenceCanvas;
@@ -152,6 +154,12 @@ export class SequenceViewer {
         this.scrollY = 0;
         this.selectionStart = null;
         this.selectionEnd = null;
+        this.requestRedraw();
+    }
+
+    public setSearchResults(results: number[][], queryLength: number) {
+        this.searchResults = results;
+        this.searchQueryLength = queryLength;
         this.requestRedraw();
     }
 
@@ -613,6 +621,18 @@ export class SequenceViewer {
         const endCol = Math.max(this.selectionStart.pos, this.selectionEnd.pos);
 
         return seqIndex >= startRow && seqIndex <= endRow && pos >= startCol && pos <= endCol;
+    }
+
+    private isSearchResult(seqIndex: number, pos: number): boolean {
+        if (!this.searchResults || !this.searchResults[seqIndex] || this.searchQueryLength === 0) {
+            return false;
+        }
+        for (const startIndex of this.searchResults[seqIndex]) {
+            if (pos >= startIndex && pos < startIndex + this.searchQueryLength) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private draw() {
