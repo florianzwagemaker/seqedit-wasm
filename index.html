@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>seqedit-wasm</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="toolbar">
+        <input type="text" id="url-input" placeholder="Enter FASTA URL">
+        <button id="load-button">Load</button>
+        <button id="revcomp-button">Reverse Complement</button>
+        <button id="translate-button">Translate</button>
+        <div id="frame-buttons" style="display: none;">
+          <button id="frame1-button">Frame 1</button>
+          <button id="frame2-button">Frame 2</button>
+          <button id="frame3-button">Frame 3</button>
+        </div>
+        <input type="text" id="search-input" placeholder="Search sequence">
+        <button id="search-button">Search</button>
+      </div>
+      <div class="content">
+        <div class="editor-grid">
+          <div class="ruler-container">
+            <canvas id="ruler-canvas"></canvas>
+          </div>
+          <div class="names-container">
+            <canvas id="names-canvas"></canvas>
+          </div>
+          <div class="sequence-container">
+            <canvas id="sequence-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="./dist/bundle.js" type="module"></script>
+  </body>
+</html>
