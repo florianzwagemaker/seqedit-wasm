@@ -759,7 +759,7 @@ export class SequenceViewer {
         const endCol = Math.min(this.maxSequenceLength, startCol + Math.ceil(this.rulerCanvas.width / this.blockWidth));
 
         for (let j = startCol; j < endCol; j++) {
-            if (j % 5 === 0) { // Draw label every 5 blocks
+            if (j % 3 === 0) { // Draw label every 5 blocks
                 const x = j * this.blockWidth - this.scrollX + this.blockWidth / 2;
                 this.rulerCtx.fillStyle = '#000000';
                 this.rulerCtx.fillText(String(j + 1), x, this.rulerCanvas.height / 2);
