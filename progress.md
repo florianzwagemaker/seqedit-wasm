@@ -15,6 +15,7 @@ This document tracks the progress of the seqedit-wasm project.
 
 *   Implemented loading a FASTA file from a URL.
 *   Implemented parsing of FASTA files using a Rust function exposed to WebAssembly.
+*   Enable the loading of a fasta through the URL by providing a &input-fasta={fasta url} parameter
 
 ### Sequence Viewer
 
@@ -51,7 +52,14 @@ This document tracks the progress of the seqedit-wasm project.
     *   Event listeners are set up to call the `translate` function and `setTranslatedSequences`/`setNucleotideMode` methods.
     *   The entire viewer is switched to translated amino-acids.
 
+## Features that need improvement
+
+* When selecting multiple sequences and making an edit, the selection is forgotten. This should not be the case as it disrupts the user's workflow. It is very possible that the user wants to make multiple edits in a row to the selected sequences/columns.
+* Selecting multiple positions by holding shift and using the keyboard arrows works only after I explicitly click on a cell/position first with my mouse. If i already am navigating the grid with my keyboard and then want to make a multiple selection by holding shift, then this currently does not work.
+* The current search functionality is not working. Neither searching for a nucleotide motif nor for a specific sequence name works, and there are no highlights displayed (or any visual feedback)
+
 ## Next Steps (Remaining MVP Features)
 
+*   Implement undo/redo functionality. (this needs to be possible with ctrl + z/y)
 *   Implement search functionality.
 *   Use browser's localStorage to save work in progress.

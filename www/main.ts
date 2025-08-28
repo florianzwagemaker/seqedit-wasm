@@ -88,6 +88,12 @@ async function main() {
     document.getElementById('frame2-button')!.addEventListener('click', () => translateAll(2));
     document.getElementById('frame3-button')!.addEventListener('click', () => translateAll(3));
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const fastaUrl = urlParams.get('input-fasta');
+    if (fastaUrl) {
+        urlInput.value = fastaUrl;
+    }
+
     // Load default sequences on page load
     loadSequences();
 }
