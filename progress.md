@@ -63,7 +63,8 @@ This document tracks the progress of the seqedit-wasm project.
 
 * When selecting multiple sequences and making an edit, the selection is forgotten. This should not be the case as it disrupts the user's workflow. It is very possible that the user wants to make multiple edits in a row to the selected sequences/columns.
 * Selecting multiple positions by holding shift and using the keyboard arrows works only after I explicitly click on a cell/position first with my mouse. If i already am navigating the grid with my keyboard and then want to make a multiple selection by holding shift, then this currently does not work.
-* The current search functionality is not working. Neither searching for a nucleotide motif nor for a specific sequence name works, and there are no highlights displayed (or any visual feedback)
+* The current search functionality IS working. However, it could be improved by jumping to the first result in the viewer, and jumping to the next result if i click the search button again.
+* Once cells are selected in the viewer/editor, it becomes effectively impossible to deselect them. i can no longer do any inputs in the search box if i have already clicked on a cell within the viewer, all keystrokes will then apply in the viewer and not in the search box (this is an example, but it happens with every input element).
 
 ## Next Steps (Remaining MVP Features)
 
