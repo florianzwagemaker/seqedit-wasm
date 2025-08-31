@@ -10,6 +10,7 @@ By leveraging existing (pre-)compiled WebAssembly binaries from Biowasm for key 
 ### File handling:
 
 * Load and parse single or multiple sequences from a FASTA file through a URL.
+* Keep a metadata file in storage (although hidden) which gets fetched through a URL parameter.
 * Use the browser’s localStorage to save work in progress and to leverage session management.
 
 ### Sequence viewer & editor:
@@ -35,3 +36,12 @@ By leveraging existing (pre-)compiled WebAssembly binaries from Biowasm for key 
 * The view for phylogenies is not included in the MVP.
 * The view for metadata is not included in the MVP.
 * Phylogeny features are not included in the MVP.
+
+### Sequence and metadata revision creation
+
+This sequence editor is to facilitate the curation and editing purposes of sequences in an already existing database/platform.
+Specifically, this editor will be specifically built for the Loculus database system. https://loculus.org/
+
+Therefore, the sequence editor needs a method to put the edited sequences and their metadata back into the Loculus database through loculus' revision API endpoint; https://loculus.org/for-users/revise-sequences/
+
+All the fasta sequences and the metadata will be primarily provided through URL parameters. It will also be necessary to accept a 'revision url' parameter so we know what the loculus API endpoint is supposed to be to create the revision.

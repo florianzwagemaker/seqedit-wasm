@@ -136,6 +136,10 @@ export class SequenceViewer {
         return this.sequences;
     }
 
+    public getSequenceNames(): string[] {
+        return this.names;
+    }
+
     public getSelectedSequenceIndices(): number[] {
         return Array.from(this.selectedSequenceNames);
     }
@@ -708,6 +712,11 @@ export class SequenceViewer {
                 if (this.selectedSequenceNames.has(i)) {
                     this.seqCtx.fillStyle = 'rgba(0, 255, 0, 0.1)'; // Light green overlay for selected rows
                     this.seqCtx.fillRect(x, y, this.blockWidth, this.blockHeight); // Apply to each block in the row
+                }
+
+                if (this.isSearchResult(i, j)) {
+                    this.seqCtx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // Semi-transparent yellow for search results
+                    this.seqCtx.fillRect(x, y, this.blockWidth, this.blockHeight);
                 }
 
                 if (this.isNucleotideSelected(i, j)) { // This method name is now misleading, should be isCharSelected

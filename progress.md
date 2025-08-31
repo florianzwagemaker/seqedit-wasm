@@ -52,6 +52,13 @@ This document tracks the progress of the seqedit-wasm project.
     *   Event listeners are set up to call the `translate` function and `setTranslatedSequences`/`setNucleotideMode` methods.
     *   The entire viewer is switched to translated amino-acids.
 
+### Sequence and Metadata Revision Creation
+
+*   Implement loading a hidden metadata file through a URL parameter.
+*   Implement sending the edited data to a loculus instance as a revision.
+
+**Important Note:** The current implementation for sending revisions uses a placeholder for authentication. This functionality requires a full authentication implementation and extensive validation and verification before it can be considered complete and secure.
+
 ## Features that need improvement
 
 * When selecting multiple sequences and making an edit, the selection is forgotten. This should not be the case as it disrupts the user's workflow. It is very possible that the user wants to make multiple edits in a row to the selected sequences/columns.
