@@ -144,6 +144,10 @@ export class SequenceViewer {
         return Array.from(this.selectedSequenceNames);
     }
 
+    public getTranslatedSequences(): string[] {
+        return this.translatedSequences;
+    }
+
     public clearSelectedSequenceNames() {
         this.selectedSequenceNames.clear();
         this.requestRedraw();
