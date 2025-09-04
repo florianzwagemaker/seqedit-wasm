@@ -85,12 +85,19 @@ export class SequenceViewer {
         this.namesCtx = namesCanvas.getContext('2d')!;
         this.rulerCtx = rulerCanvas.getContext('2d')!;
 
+        // Make canvas focusable for keyboard navigation
+        this.sequenceCanvas.tabIndex = 0;
+
         this.sequenceCanvas.addEventListener('wheel', this.onWheel.bind(this));
         this.namesCanvas.addEventListener('wheel', this.onWheel.bind(this));
         this.namesCanvas.addEventListener('mousedown', this.onNamesCanvasMouseDown.bind(this));
         this.sequenceCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.sequenceCanvas.addEventListener('mousemove', this.onMouseMove.bind(this));
         this.sequenceCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+        this.sequenceCanvas.addEventListener('focus', () => {
+            this.ensureSelection();
+            this.requestRedraw();
+        });
 
         this.resizeCanvas();
         window.addEventListener('resize', this.resizeCanvas.bind(this));
@@ -313,7 +320,7 @@ export class SequenceViewer {
         return selectedText;
     }
 
-    private deleteSelectedRange(): { seqIndex: number, pos: number } | null {
+    private deleteSelectedRange(preserveSelection: boolean = false): { seqIndex: number, pos: number } | null {
         if (!this.selectionStart || !this.selectionEnd) {
             return null;
         }
@@ -325,6 +332,10 @@ export class SequenceViewer {
 
         const newCursorPos = { seqIndex: startRow, pos: startCol };
 
+        // Store the original selection if we want to preserve it
+        const originalSelectionStart = preserveSelection ? { ...this.selectionStart } : null;
+        const originalSelectionEnd = preserveSelection ? { ...this.selectionEnd } : null;
+
         for (let i = startRow; i <= endRow; i++) {
             const originalSequence = this.sequences[i];
             const newSequence = originalSequence.slice(0, startCol) + originalSequence.slice(endCol + 1);
@@ -332,11 +343,67 @@ export class SequenceViewer {
         }
 
         this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-        this.selectionStart = null; // Clear selection
-        this.selectionEnd = null;
+        
+        if (preserveSelection && originalSelectionStart && originalSelectionEnd) {
+            // Adjust the selection bounds after deletion
+            const deletedLength = endCol - startCol + 1;
+            this.selectionStart = originalSelectionStart;
+            this.selectionEnd = {
+                seqIndex: originalSelectionEnd.seqIndex,
+                pos: Math.max(startCol, originalSelectionEnd.pos - deletedLength)
+            };
+        } else {
+            // Keep the cursor position but clear the range selection
+            this.selectionStart = newCursorPos;
+            this.selectionEnd = newCursorPos;
+        }
+        
         this.requestRedraw();
-
         return newCursorPos;
+    }
+
+    private backspaceSelection() {
+        if (!this.selectionStart || !this.selectionEnd) {
+            return;
+        }
+
+        const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+
+        // Store the original selection to preserve it
+        const originalSelectionStart = { ...this.selectionStart };
+        const originalSelectionEnd = { ...this.selectionEnd };
+
+        // If we're at the beginning of sequences, there's nothing to backspace
+        if (startCol === 0) {
+            return;
+        }
+
+        // Remove the character immediately to the left of the selection
+        const backspacePos = startCol - 1;
+
+        for (let i = startRow; i <= endRow; i++) {
+            const originalSequence = this.sequences[i];
+            if (backspacePos < originalSequence.length) {
+                const newSequence = originalSequence.slice(0, backspacePos) + originalSequence.slice(backspacePos + 1);
+                this.sequences[i] = newSequence;
+            }
+        }
+
+        this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
+        
+        // Adjust the selection to account for the removed character (shift left by 1)
+        this.selectionStart = {
+            seqIndex: originalSelectionStart.seqIndex,
+            pos: originalSelectionStart.pos - 1
+        };
+        this.selectionEnd = {
+            seqIndex: originalSelectionEnd.seqIndex,
+            pos: originalSelectionEnd.pos - 1
+        };
+        
+        this.requestRedraw();
     }
 
     private deleteCharacter(isBackspace: boolean) {
@@ -346,22 +413,41 @@ export class SequenceViewer {
 
         const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
         const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
-        let startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+        const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+        const endCol = Math.max(this.selectionStart.pos, this.selectionEnd.pos);
 
-        if (isBackspace) {
-            if (startCol > 0) {
-                startCol--;
+        // Check if we have a multi-cell selection
+        const hasMultiCellSelection = (startRow !== endRow) || (startCol !== endCol);
+
+        if (hasMultiCellSelection) {
+            if (isBackspace) {
+                // Backspace: Remove characters to the left of selection, preserve selection
+                this.backspaceSelection();
+            } else {
+                // Delete key: Replace selection with dashes and preserve selection
+                this.fillSelection('-');
             }
+            return;
+        }
+
+        // For single cell cursor position, delete one character
+        let deletePos = startCol;
+        if (isBackspace && deletePos > 0) {
+            deletePos--;
         }
 
         for (let i = startRow; i <= endRow; i++) {
             const originalSequence = this.sequences[i];
-            const newSequence = originalSequence.slice(0, startCol) + originalSequence.slice(startCol + 1);
-            this.sequences[i] = newSequence;
+            if (deletePos < originalSequence.length) {
+                const newSequence = originalSequence.slice(0, deletePos) + originalSequence.slice(deletePos + 1);
+                this.sequences[i] = newSequence;
+            }
         }
 
         this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-        this.selectionStart = { seqIndex: startRow, pos: startCol };
+        
+        // Position cursor at the deletion point
+        this.selectionStart = { seqIndex: startRow, pos: deletePos };
         this.selectionEnd = this.selectionStart;
         this.requestRedraw();
     }
@@ -371,10 +457,22 @@ export class SequenceViewer {
             return;
         }
 
+        // If we have a multi-cell selection, replace it with the character instead of inserting
         const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
         const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
         const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+        const endCol = Math.max(this.selectionStart.pos, this.selectionEnd.pos);
 
+        // Check if we have a multi-cell selection
+        const hasMultiCellSelection = (startRow !== endRow) || (startCol !== endCol);
+
+        if (hasMultiCellSelection) {
+            // For multi-cell selections, fill the selection instead of inserting
+            this.fillSelection(char);
+            return;
+        }
+
+        // For single cell cursor position, insert the character
         for (let i = startRow; i <= endRow; i++) {
             const originalSequence = this.sequences[i];
             const newSequence = originalSequence.slice(0, startCol) + char + originalSequence.slice(startCol);
@@ -382,6 +480,8 @@ export class SequenceViewer {
         }
 
         this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
+        
+        // Move cursor to after the inserted character
         this.selectionStart = { seqIndex: startRow, pos: startCol + 1 };
         this.selectionEnd = this.selectionStart;
         this.requestRedraw();
@@ -397,6 +497,10 @@ export class SequenceViewer {
         const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
         const endCol = Math.max(this.selectionStart.pos, this.selectionEnd.pos);
 
+        // Store the original selection to preserve it
+        const originalSelectionStart = { ...this.selectionStart };
+        const originalSelectionEnd = { ...this.selectionEnd };
+
         for (let i = startRow; i <= endRow; i++) {
             const originalSequence = this.sequences[i];
             let newSequenceArray = originalSequence.split('');
@@ -410,12 +514,60 @@ export class SequenceViewer {
         }
 
         this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
-        this.selectionStart = null; // Clear selection
-        this.selectionEnd = null;
+        
+        // Restore the original selection to preserve it
+        this.selectionStart = originalSelectionStart;
+        this.selectionEnd = originalSelectionEnd;
         this.requestRedraw();
     }
 
+    private insertCharacterWithShift(char: string) {
+        if (!this.selectionStart || !this.selectionEnd) {
+            return;
+        }
+
+        const startRow = Math.min(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const endRow = Math.max(this.selectionStart.seqIndex, this.selectionEnd.seqIndex);
+        const startCol = Math.min(this.selectionStart.pos, this.selectionEnd.pos);
+
+        // Store the original selection to preserve it after insertion
+        const originalSelectionStart = { ...this.selectionStart };
+        const originalSelectionEnd = { ...this.selectionEnd };
+
+        // Insert character at the start position and shift everything right
+        for (let i = startRow; i <= endRow; i++) {
+            const originalSequence = this.sequences[i];
+            const newSequence = originalSequence.slice(0, startCol) + char + originalSequence.slice(startCol);
+            this.sequences[i] = newSequence;
+        }
+
+        this.maxSequenceLength = Math.max(...this.sequences.map(s => s.length));
+        
+        // Adjust selection to account for the inserted character
+        this.selectionStart = {
+            seqIndex: originalSelectionStart.seqIndex,
+            pos: originalSelectionStart.pos + 1
+        };
+        this.selectionEnd = {
+            seqIndex: originalSelectionEnd.seqIndex,
+            pos: originalSelectionEnd.pos + 1
+        };
+        
+        this.requestRedraw();
+    }
+
+    private ensureSelection() {
+        // Initialize selection if not already set (for keyboard navigation without mouse click)
+        if (!this.selectionStart && this.sequences.length > 0) {
+            this.selectionStart = { seqIndex: 0, pos: 0 };
+            this.selectionEnd = { ...this.selectionStart };
+        }
+    }
+
     private onKeyDown(event: KeyboardEvent) {
+        // Ensure we have a valid selection for keyboard navigation
+        this.ensureSelection();
+        
         if (!this.selectionStart) return;
 
         if (event.ctrlKey || event.metaKey) {
@@ -461,7 +613,14 @@ export class SequenceViewer {
             }
         } else if (event.key === ' ') {
             event.preventDefault();
-            this.insertCharacter('-');
+            // Spacebar: Insert dash and shift characters (insert action)
+            if (this.selectionStart && this.selectionEnd && (this.selectionStart.pos !== this.selectionEnd.pos || this.selectionStart.seqIndex !== this.selectionEnd.seqIndex)) {
+                // Multi-cell selection: insert at start and shift selection
+                this.insertCharacterWithShift('-');
+            } else {
+                // Single cursor: regular insert
+                this.insertCharacter('-');
+            }
         } else if (event.key === 'ArrowLeft') {
             event.preventDefault();
             if (event.ctrlKey) {
@@ -469,12 +628,16 @@ export class SequenceViewer {
                 this.selectionStart = { seqIndex, pos: newPos };
                 this.selectionEnd = this.selectionStart;
             } else if (event.shiftKey) {
+                // Ensure selectionEnd is initialized if not already
+                if (!this.selectionEnd) {
+                    this.selectionEnd = { ...this.selectionStart };
+                }
                 // Extend selection left
-                if (this.selectionEnd!.pos > 0) {
-                    this.selectionEnd!.pos--;
-                } else if (this.selectionEnd!.seqIndex > 0) {
-                    this.selectionEnd!.seqIndex--;
-                    this.selectionEnd!.pos = this.sequences[this.selectionEnd!.seqIndex].length;
+                if (this.selectionEnd.pos > 0) {
+                    this.selectionEnd.pos--;
+                } else if (this.selectionEnd.seqIndex > 0) {
+                    this.selectionEnd.seqIndex--;
+                    this.selectionEnd.pos = this.sequences[this.selectionEnd.seqIndex].length;
                 }
             } else {
                 // Move cursor left, clear selection
@@ -493,12 +656,16 @@ export class SequenceViewer {
                 this.selectionStart = { seqIndex, pos: newPos };
                 this.selectionEnd = this.selectionStart;
             } else if (event.shiftKey) {
+                // Ensure selectionEnd is initialized if not already
+                if (!this.selectionEnd) {
+                    this.selectionEnd = { ...this.selectionStart };
+                }
                 // Extend selection right
-                if (this.selectionEnd!.pos < this.sequences[seqIndex].length) {
-                    this.selectionEnd!.pos++;
-                } else if (this.selectionEnd!.seqIndex < this.sequences.length - 1) {
-                    this.selectionEnd!.seqIndex++;
-                    this.selectionEnd!.pos = 0;
+                if (this.selectionEnd.pos < this.sequences[this.selectionEnd.seqIndex].length) {
+                    this.selectionEnd.pos++;
+                } else if (this.selectionEnd.seqIndex < this.sequences.length - 1) {
+                    this.selectionEnd.seqIndex++;
+                    this.selectionEnd.pos = 0;
                 }
             } else {
                 // Move cursor right, clear selection
@@ -516,10 +683,14 @@ export class SequenceViewer {
                 this.selectionStart = { seqIndex: 0, pos: pos };
                 this.selectionEnd = this.selectionStart;
             } else if (event.shiftKey) {
+                // Ensure selectionEnd is initialized if not already
+                if (!this.selectionEnd) {
+                    this.selectionEnd = { ...this.selectionStart };
+                }
                 // Extend selection up
-                if (this.selectionEnd!.seqIndex > 0) {
-                    this.selectionEnd!.seqIndex--;
-                    this.selectionEnd!.pos = Math.min(this.selectionEnd!.pos, this.sequences[this.selectionEnd!.seqIndex].length);
+                if (this.selectionEnd.seqIndex > 0) {
+                    this.selectionEnd.seqIndex--;
+                    this.selectionEnd.pos = Math.min(this.selectionEnd.pos, this.sequences[this.selectionEnd.seqIndex].length);
                 }
             } else {
                 // Move cursor up, clear selection
@@ -537,10 +708,14 @@ export class SequenceViewer {
                 this.selectionStart = { seqIndex: this.sequences.length - 1, pos: pos };
                 this.selectionEnd = this.selectionStart;
             } else if (event.shiftKey) {
+                // Ensure selectionEnd is initialized if not already
+                if (!this.selectionEnd) {
+                    this.selectionEnd = { ...this.selectionStart };
+                }
                 // Extend selection down
-                if (this.selectionEnd!.seqIndex < this.sequences.length - 1) {
-                    this.selectionEnd!.seqIndex++;
-                    this.selectionEnd!.pos = Math.min(this.selectionEnd!.pos, this.sequences[this.selectionEnd!.seqIndex].length);
+                if (this.selectionEnd.seqIndex < this.sequences.length - 1) {
+                    this.selectionEnd.seqIndex++;
+                    this.selectionEnd.pos = Math.min(this.selectionEnd.pos, this.sequences[this.selectionEnd.seqIndex].length);
                 }
             } else {
                 // Move cursor down, clear selection
