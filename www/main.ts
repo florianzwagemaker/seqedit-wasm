@@ -315,54 +315,60 @@ async function main() {
         const names = viewer.getSequenceNames();
         console.log('Sequences to save:', names.length, 'sequences');
         console.log('Original sequence names:', names);
-        
-        // Create a mapping from accessionVersion to submissionId based on metadata
-        const accessionToSubmissionId = new Map<string, string>();
-        const lines = metadata.originalText.split('\n');
-        const headers = lines[0].split('\t');
-        
-        const accessionVersionIndex = headers.indexOf('accessionVersion');
-        const submissionIdIndex = headers.indexOf('submissionId');
-        
-        console.log('Metadata headers:', headers);
-        console.log('AccessionVersion index:', accessionVersionIndex, 'SubmissionId index:', submissionIdIndex);
-        
-        if (accessionVersionIndex !== -1 && submissionIdIndex !== -1) {
-            for (let i = 1; i < lines.length; i++) {
-                const columns = lines[i].split('\t');
-                if (columns.length > Math.max(accessionVersionIndex, submissionIdIndex)) {
-                    const accessionVersion = columns[accessionVersionIndex];
-                    const submissionId = columns[submissionIdIndex];
-                    if (accessionVersion && submissionId) {
-                        accessionToSubmissionId.set(accessionVersion, submissionId);
-                    }
-                }
+
+        // Start from parsed header/rows so we can modify columns programmatically
+        let workingHeader = [...metadata.header];
+        let workingRows = metadata.rows.map(r => [...r]);
+
+        // Remove submissionId column if present
+        const submissionIdIndex = workingHeader.indexOf('submissionId');
+        if (submissionIdIndex !== -1) {
+            console.log('Removing submissionId column from metadata');
+            workingHeader = workingHeader.filter((_, idx) => idx !== submissionIdIndex);
+            workingRows = workingRows.map(row => row.filter((_, idx) => idx !== submissionIdIndex));
+        } else {
+            console.log('No submissionId column found in metadata; using original metadata');
+        }
+
+        // Ensure there is an "Id" column that corresponds to the accession ID (sequence name).
+        // If "Id" doesn't exist, prepend it. If it exists, overwrite its values with accession IDs when possible.
+        const idIndex = workingHeader.indexOf('Id');
+        if (idIndex === -1) {
+            console.log('Adding Id column to metadata (will prepend as first column)');
+            workingHeader = ['id', ...workingHeader];
+            workingRows = workingRows.map((row, idx) => {
+                const accession = names[idx] ?? '';
+                return [accession, ...row];
+            });
+        } else {
+            console.log('Id column exists in metadata; updating values to match accession IDs where possible');
+            workingRows = workingRows.map((row, idx) => {
+                const newRow = [...row];
+                newRow[idIndex] = names[idx] ?? newRow[idIndex] ?? '';
+                return newRow;
+            });
+        }
+
+        // If there are more sequences than metadata rows, append rows with Id only (best-effort)
+        if (names.length > workingRows.length) {
+            console.warn('More sequences than metadata rows; appending additional metadata rows with Id only for unmatched sequences');
+            for (let i = workingRows.length; i < names.length; i++) {
+                const newRow = new Array(workingHeader.length).fill('');
+                newRow[workingHeader.indexOf('Id')] = names[i];
+                workingRows.push(newRow);
             }
         }
-        
-        console.log('Accession to SubmissionId mapping:', Array.from(accessionToSubmissionId.entries()));
-        
-        // Map sequence names from accessionVersion to submissionId
-        const mappedNames = names.map(name => {
-            const submissionId = accessionToSubmissionId.get(name);
-            if (submissionId) {
-                console.log(`Mapping ${name} -> ${submissionId}`);
-                return submissionId;
-            } else {
-                console.warn(`No submissionId found for ${name}, keeping original name`);
-                return name;
-            }
-        });
-        
-        console.log('Mapped sequence names:', mappedNames);
-        
-        const fastaContent = mappedNames.map((name: string, i: number) => `>${name}\n${sequences[i]}`).join('\n');
+
+        // Compose modified metadata text
+        const modifiedMetadataText = [workingHeader.join('\t'), ...workingRows.map(r => r.join('\t'))].join('\n');
+        console.log('Modified metadata preview:', modifiedMetadataText.substring(0, 500) + '...');
+
+        // Keep original sequence names (do not remap to submissionId)
+        const fastaContent = names.map((name: string, i: number) => `>${name}\n${sequences[i]}`).join('\n');
         console.log('FASTA content preview:', fastaContent.substring(0, 200) + '...');
-        
+
         const fastaFile = new File([fastaContent], "sequences.fasta", { type: "text/plain" });
-        const metadataFile = new File([metadata.originalText], "metadata.tsv", { type: "text/tab-separated-values" });
-        
-        console.log('Metadata preview:', metadata.originalText.substring(0, 500) + '...');
+        const metadataFile = new File([modifiedMetadataText], "metadata.tsv", { type: "text/tab-separated-values" });
 
         const formData = new FormData();
         formData.append('sequenceFile', fastaFile);
