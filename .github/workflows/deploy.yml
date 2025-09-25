@@ -31,12 +31,6 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: List files in www
-        run: ls -la www
-
-      - name: List files in www/dist
-        run: ls -la www/dist
-
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
