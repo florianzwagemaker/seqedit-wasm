@@ -363,8 +363,10 @@ async function main() {
         const modifiedMetadataText = [workingHeader.join('\t'), ...workingRows.map(r => r.join('\t'))].join('\n');
         console.log('Modified metadata preview:', modifiedMetadataText.substring(0, 500) + '...');
 
+        // Remove dashes from sequences before uploading
+        const cleanedSequences = sequences.map(seq => seq.replace(/-/g, ''));
         // Keep original sequence names (do not remap to submissionId)
-        const fastaContent = names.map((name: string, i: number) => `>${name}\n${sequences[i]}`).join('\n');
+        const fastaContent = names.map((name: string, i: number) => `>${name}\n${cleanedSequences[i]}`).join('\n');
         console.log('FASTA content preview:', fastaContent.substring(0, 200) + '...');
 
         const fastaFile = new File([fastaContent], "sequences.fasta", { type: "text/plain" });
